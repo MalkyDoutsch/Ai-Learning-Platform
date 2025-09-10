@@ -40,7 +40,7 @@ class Lesson(Base):
     title = Column(String)
     prompt = Column(Text)
     content = Column(Text)
-    metadata = Column(JSON)
+    lesson_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
     subcategory_id = Column(Integer, ForeignKey("subcategories.id"))

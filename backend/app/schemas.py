@@ -62,7 +62,7 @@ class LessonGenerate(BaseModel):
 class Lesson(LessonBase):
     id: int
     content: str
-    metadata: Optional[Dict[str, Any]] = None
+    lesson_metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     user_id: int
     
