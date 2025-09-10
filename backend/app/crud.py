@@ -54,7 +54,7 @@ def create_lesson(db: Session, lesson: schemas.LessonCreate, content: str, metad
         title=lesson.title,
         prompt=lesson.prompt,
         content=content,
-        metadata=metadata,
+        lesson_metadata=metadata,
         user_id=lesson.user_id,
         subcategory_id=lesson.subcategory_id
     )
