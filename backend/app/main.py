@@ -1,86 +1,54 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import engine, Base
-from .api import auth, categories, lessons
-from . import crud, schemas, database
-from sqlalchemy.orm import Session
+from fastapi.responses import RedirectResponse
+import os
+from dotenv import load_dotenv
 
-Base.metadata.create_all(bind=engine)
+from app.database import engine
+from app.models import user, category, prompt
+from app.routes import users, categories, prompts
 
-app = FastAPI(title="Learning Platform API", version="1.0.0")
+# Load environment variables
+load_dotenv()
 
+# Create database tables
+user.Base.metadata.create_all(bind=engine)
+category.Base.metadata.create_all(bind=engine)
+prompt.Base.metadata.create_all(bind=engine)
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="AI Learning Platform API",
+    description="A REST API for managing users, categories, and AI-generated learning content",
+    version="1.0.0"
+)
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(categories.router, prefix="/api")
-app.include_router(lessons.router, prefix="/api")
-
-@app.on_event("startup")
-def startup_event():
-    db = database.SessionLocal()
-    try:
-        # Create default categories if they don't exist
-        if not crud.get_categories(db):
-            default_categories = [
-                {"name": "Programming", "description": "Learn various programming languages and concepts"},
-                {"name": "Data Science", "description": "Master data analysis and machine learning"},
-                {"name": "Web Development", "description": "Build modern web applications"},
-                {"name": "Mathematics", "description": "Explore mathematical concepts and theories"},
-                {"name": "Language Learning", "description": "Learn new languages and improve communication"}
-            ]
-            
-            for cat_data in default_categories:
-                cat = crud.create_category(db, schemas.CategoryCreate(**cat_data))
-                
-                # Add subcategories
-                if cat.name == "Programming":
-                    subcats = [
-                        {"name": "Python", "description": "Learn Python programming"},
-                        {"name": "JavaScript", "description": "Master JavaScript"},
-                        {"name": "Java", "description": "Java programming fundamentals"}
-                    ]
-                elif cat.name == "Data Science":
-                    subcats = [
-                        {"name": "Machine Learning", "description": "ML algorithms and techniques"},
-                        {"name": "Data Analysis", "description": "Analyze data effectively"},
-                        {"name": "Deep Learning", "description": "Neural networks and AI"}
-                    ]
-                elif cat.name == "Web Development":
-                    subcats = [
-                        {"name": "Frontend", "description": "HTML, CSS, and JavaScript"},
-                        {"name": "Backend", "description": "Server-side development"},
-                        {"name": "Full Stack", "description": "Complete web applications"}
-                    ]
-                elif cat.name == "Mathematics":
-                    subcats = [
-                        {"name": "Calculus", "description": "Differential and integral calculus"},
-                        {"name": "Linear Algebra", "description": "Vectors and matrices"},
-                        {"name": "Statistics", "description": "Statistical analysis and probability"}
-                    ]
-                else:  # Language Learning
-                    subcats = [
-                        {"name": "Spanish", "description": "Learn Spanish language"},
-                        {"name": "French", "description": "Master French language"},
-                        {"name": "German", "description": "German language fundamentals"}
-                    ]
-                
-                for subcat_data in subcats:
-                    crud.create_subcategory(
-                        db, 
-                        schemas.SubCategoryCreate(
-                            **subcat_data,
-                            category_id=cat.id
-                        )
-                    )
-    finally:
-        db.close()
+# Include routers
+app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
+app.include_router(prompts.router, prefix="/api/prompts", tags=["prompts"])
 
 @app.get("/")
-def root():
-    return {"message": "Learning Platform API", "version": "1.0.0"}
+async def root():
+    """Root endpoint that redirects to API documentation"""
+    return RedirectResponse(url="/docs")
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "AI Learning Platform API is running"}
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("API_HOST", "0.0.0.0")
+    port = int(os.getenv("API_PORT", 8000))
+    uvicorn.run(app, host=host, port=port)
