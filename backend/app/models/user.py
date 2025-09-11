@@ -9,6 +9,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, index=True)
     phone = Column(String, unique=True, nullable=False, index=True)
+    password = Column(String(128), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship to prompts

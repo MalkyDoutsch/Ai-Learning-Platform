@@ -6,6 +6,7 @@ import re
 class UserBase(BaseModel):
     name: str
     phone: str
+    password: str
 
     @validator('name')
     def name_must_not_be_empty(cls, v):
@@ -20,6 +21,13 @@ class UserBase(BaseModel):
         if not re.match(phone_pattern, v.replace(' ', '').replace('-', '')):
             raise ValueError('Invalid phone number format')
         return v.replace(' ', '').replace('-', '')
+
+    @validator("password")
+    def hash_password(cls, value: str) -> str:
+        # בדיקה בסיסית – שהסיסמה לא ריקה
+        if len(value) < 6:
+            raise ValueError("Password must be at least 6 characters long")
+        #  להפו לHASH
 
 class UserCreate(UserBase):
     pass

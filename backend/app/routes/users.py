@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.prompt import Prompt
 from app.schemas.user import User as UserSchema, UserCreate, UserWithPrompts
-
+from app.schemas.user import User as UserSchema, UserCreate, UserWithPrompts
 router = APIRouter()
 
 @router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)

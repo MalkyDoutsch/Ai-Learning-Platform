@@ -10,7 +10,9 @@ class AIService:
         self.api_key = os.getenv("OPENAI_API_KEY")
         if self.api_key:
             openai.api_key = self.api_key
-        self.model = "gpt-3.5-turbo"
+        if not self.api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        self.model = "gpt-4o-mini"
     
     async def generate_lesson(
         self, 
@@ -18,7 +20,7 @@ class AIService:
         prompt: str, 
         category: Optional[str] = None,
         sub_category: Optional[str] = None
-    ) -> str:
+        ) -> str:
         """
         Generate an AI lesson based on topic and prompt.
         Falls back to mock response if OpenAI API is not available.
@@ -87,7 +89,7 @@ class AIService:
         prompt: str, 
         category: Optional[str] = None,
         sub_category: Optional[str] = None
-    ) -> str:
+        ) -> str:
         """Generate a mock lesson when OpenAI API is not available"""
         
         category_context = ""
@@ -97,62 +99,59 @@ class AIService:
             category_context = f" in {category}"
         
         mock_lesson = f"""
-# {topic}{category_context}
+        # {topic}{category_context}
 
-## Introduction
-This is a comprehensive lesson about **{topic}** based on your request: "{prompt}"
+        ## Introduction
+        This is a comprehensive lesson about **{topic}** based on your request: "{prompt}"
 
-## Key Concepts
+        ## Key Concepts
 
-### What is {topic}?
-{topic} is an important subject that deserves careful study and understanding. This lesson will provide you with fundamental knowledge and practical insights.
+        ### What is {topic}?
+        {topic} is an important subject that deserves careful study and understanding. This lesson will provide you with fundamental knowledge and practical insights.
 
-### Why Study {topic}?
-Understanding {topic} is valuable because:
-- It provides foundational knowledge in this field
-- It helps develop critical thinking skills  
-- It has practical applications in real-world scenarios
-- It connects to broader concepts and ideas
+        ### Why Study {topic}?
+        Understanding {topic} is valuable because:
+        - It provides foundational knowledge in this field
+        - It helps develop critical thinking skills  
+        - It has practical applications in real-world scenarios
+        - It connects to broader concepts and ideas
 
-## Main Content
+        ## Main Content
 
-### Core Principles
-The fundamental principles of {topic} include several key elements that work together to create a comprehensive understanding. These principles have been developed through extensive research and practical application.
+        ### Core Principles
+        The fundamental principles of {topic} include several key elements that work together to create a comprehensive understanding. These principles have been developed through extensive research and practical application.
 
-### Practical Examples
-Here are some practical examples to help illustrate the concepts:
+        ### Practical Examples
+        Here are some practical examples to help illustrate the concepts:
 
-1. **Example 1**: Real-world applications demonstrate how these principles work in practice
-2. **Example 2**: Case studies show the impact and importance of understanding this topic
-3. **Example 3**: Current examples highlight the relevance in today's world
+        1. **Example 1**: Real-world applications demonstrate how these principles work in practice
+        2. **Example 2**: Case studies show the impact and importance of understanding this topic
+        3. **Example 3**: Current examples highlight the relevance in today's world
 
-### Advanced Concepts
-For those interested in deeper learning, advanced concepts in {topic} include:
-- Complex interactions between different elements
-- Historical development and evolution
-- Future trends and developments
-- Connections to other fields of study
+        ### Advanced Concepts
+        For those interested in deeper learning, advanced concepts in {topic} include:
+        - Complex interactions between different elements
+        - Historical development and evolution
+        - Future trends and developments
+        - Connections to other fields of study
 
-## Summary and Key Takeaways
+        ## Summary and Key Takeaways
 
-### What We've Learned
-- {topic} is a multifaceted subject with many important aspects
-- Understanding the core principles is essential for practical application
-- Real-world examples help illustrate theoretical concepts
-- Advanced concepts provide pathways for deeper learning
+        ### What We've Learned
+        - {topic} is a multifaceted subject with many important aspects
+        - Understanding the core principles is essential for practical application
+        - Real-world examples help illustrate theoretical concepts
+        - Advanced concepts provide pathways for deeper learning
 
-### Next Steps
-To continue your learning journey:
-- Practice applying these concepts in different contexts
-- Explore related topics and connections
-- Seek out additional resources and materials
-- Consider practical applications in your own life or work
+        ### Next Steps
+        To continue your learning journey:
+        - Practice applying these concepts in different contexts
+        - Explore related topics and connections
+        - Seek out additional resources and materials
+        - Consider practical applications in your own life or work
 
----
-
-*Note: This lesson was generated using the AI Learning Platform. For the most current information, consider consulting additional authoritative sources.*
+        *Note: This lesson was generated using the AI Learning Platform. For the most current information, consider consulting additional authoritative sources.*
         """
-        
         return mock_lesson.strip()
 
 # Create a global instance
