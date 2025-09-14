@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from app.database import engine
 from app.models import user, category, prompt
-from app.routes import users, categories, prompts
+from app.routes import users, categories, prompts, auth
 
 # Load environment variables
 load_dotenv()
@@ -19,8 +19,8 @@ prompt.Base.metadata.create_all(bind=engine)
 # Initialize FastAPI app
 app = FastAPI(
     title="AI Learning Platform API",
-    description="A REST API for managing users, categories, and AI-generated learning content",
-    version="1.0.0"
+    description="A REST API for managing users, categories, and AI-generated learning content with JWT authentication",
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["prompts"])
@@ -45,7 +46,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "message": "AI Learning Platform API is running"}
+    return {"status": "healthy", "message": "AI Learning Platform API is running", "version": "2.0.0"}
 
 if __name__ == "__main__":
     import uvicorn

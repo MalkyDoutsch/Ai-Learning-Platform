@@ -12,7 +12,6 @@ class PromptBase(BaseModel):
         return v.strip()
 
 class PromptCreate(PromptBase):
-    user_id: int
     category_id: int
     sub_category_id: int
 
