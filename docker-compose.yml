@@ -30,16 +30,16 @@ services:
     networks:
       - learning_network
 
-  # frontend:
-  #   build: ./frontend
-  #   environment:
-  #     REACT_APP_API_URL: http://localhost:8000
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ./frontend:/app
-  #   networks:
-  #     - learning_network
+  frontend:
+    build: ./frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    networks:
+      - learning_network
 
 volumes:
   postgres_data:
@@ -47,4 +47,3 @@ volumes:
 networks:
   learning_network:
     driver: bridge
-# ................................................................
