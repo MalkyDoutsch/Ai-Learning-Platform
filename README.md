@@ -54,6 +54,9 @@ Clone the repository
 git clone https://github.com/yourusername/ai-learning-platform.git
 cd ai-learning-platform
 
+docker-compose up --build -d
+docker-compose exec backend python seed_data.py
+
 ```
 
 That's it! The setup script will:
