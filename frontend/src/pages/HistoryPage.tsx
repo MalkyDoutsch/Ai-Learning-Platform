@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { userApi, promptApi } from '../services/api';
 import { User, Prompt } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 
 const HistoryPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -17,17 +19,25 @@ const HistoryPage: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (currentUser?.is_admin) {
+      loadUsers();
+    } else {
+      // For regular users, load their own prompts directly
+      setSelectedUserId(currentUser?.id.toString() || '');
+      loadCurrentUserPrompts();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (selectedUserId) {
-      loadUserPrompts(parseInt(selectedUserId));
+      if (currentUser?.is_admin) {
+        loadUserPrompts(parseInt(selectedUserId));
+      }
     } else {
       setPrompts([]);
       setSelectedPrompt(null);
     }
-  }, [selectedUserId]);
+  }, [selectedUserId, currentUser]);
 
   const loadUsers = async () => {
     try {
@@ -38,6 +48,23 @@ const HistoryPage: React.FC = () => {
       setAlert({
         type: 'error',
         message: 'Failed to load users. Please refresh the page.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCurrentUserPrompts = async () => {
+    setIsLoading(true);
+    try {
+      const promptsData = await promptApi.getMyPrompts();
+      setPrompts(promptsData);
+      setSelectedPrompt(null);
+    } catch (error) {
+      console.error('Error loading prompts:', error);
+      setAlert({
+        type: 'error',
+        message: 'Failed to load learning history'
       });
     } finally {
       setIsLoading(false);
@@ -66,7 +93,7 @@ const HistoryPage: React.FC = () => {
     return date.toLocaleString();
   };
 
-  const selectedUser = users.find(u => u.id === parseInt(selectedUserId));
+  const selectedUser = users.find(u => u.id === parseInt(selectedUserId)) || currentUser;
 
   if (isLoading) {
     return (
@@ -84,7 +111,10 @@ const HistoryPage: React.FC = () => {
           Learning History
         </h1>
         <p className="text-xl text-gray-600">
-          Review your past learning sessions and AI-generated lessons
+          {currentUser?.is_admin 
+            ? 'Review learning sessions and AI-generated lessons for all users'
+            : 'Review your past learning sessions and AI-generated lessons'
+          }
         </p>
       </div>
 
@@ -99,40 +129,63 @@ const HistoryPage: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* User Selection & Prompt List */}
         <div className="lg:col-span-1 space-y-6">
-          {/* User Selection */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
-              Select User
-            </h2>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Choose a user...</option>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.prompt_count || 0} lessons)
-                </option>
-              ))}
-            </select>
-            
-            {selectedUser && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900">{selectedUser.name}</h3>
-                <p className="text-sm text-gray-600">Phone: {selectedUser.phone}</p>
+          {/* User Selection - Only show for admins */}
+          {currentUser?.is_admin && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Select User
+              </h2>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Choose a user...</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name} ({user.prompt_count || 0} lessons)
+                  </option>
+                ))}
+              </select>
+              
+              {selectedUser && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <h3 className="font-semibold text-gray-900">{selectedUser.full_name}</h3>
+                  <p className="text-sm text-gray-600">Username: {selectedUser.username}</p>
+                  <p className="text-sm text-gray-600">Phone: {selectedUser.phone || 'Not provided'}</p>
+                  <p className="text-sm text-gray-600">
+                    Joined: {formatDate(selectedUser.created_at)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Total Lessons: {(selectedUser as any).prompt_count || prompts.length}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Current User Info - Show for regular users */}
+          {!currentUser?.is_admin && currentUser && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Your Profile
+              </h2>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-semibold text-gray-900">{currentUser.full_name}</h3>
+                <p className="text-sm text-gray-600">Username: {currentUser.username}</p>
+                <p className="text-sm text-gray-600">Phone: {currentUser.phone || 'Not provided'}</p>
                 <p className="text-sm text-gray-600">
-                  Joined: {formatDate(selectedUser.created_at)}
+                  Joined: {formatDate(currentUser.created_at)}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Total Lessons: {selectedUser.prompt_count || 0}
+                  Total Lessons: {prompts.length}
                 </p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Prompts List */}
-          {selectedUserId && (
+          {(selectedUserId || !currentUser?.is_admin) && (
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Learning Sessions
@@ -198,7 +251,12 @@ const HistoryPage: React.FC = () => {
               <div className="text-center py-16 text-gray-500">
                 <div className="text-6xl mb-4">📖</div>
                 <p className="text-lg">Select a learning session to view details</p>
-                <p className="text-sm">Choose a user and click on any session from the list</p>
+                <p className="text-sm">
+                  {currentUser?.is_admin 
+                    ? 'Choose a user and click on any session from the list'
+                    : 'Click on any session from your history'
+                  }
+                </p>
               </div>
             ) : (
               <div className="animate-slide-up">
