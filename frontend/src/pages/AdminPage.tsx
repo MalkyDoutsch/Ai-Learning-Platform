@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { userApi, promptApi } from '../services/api';
 import { User, Prompt } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 
 const AdminPage: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [allPrompts, setAllPrompts] = useState<Prompt[]>([]);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
@@ -58,7 +60,7 @@ const AdminPage: React.FC = () => {
     if (!user) return;
 
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete user "${user.name}"? This will also delete all their learning history.`
+      `Are you sure you want to delete user "${user.full_name}"? This will also delete all their learning history.`
     );
 
     if (confirmDelete) {
@@ -68,7 +70,7 @@ const AdminPage: React.FC = () => {
         setAllPrompts(allPrompts.filter(p => p.user_id !== userId));
         setAlert({
           type: 'success',
-          message: `User "${user.name}" has been deleted successfully`
+          message: `User "${user.full_name}" has been deleted successfully`
         });
       } catch (error) {
         console.error('Error deleting user:', error);
@@ -188,21 +190,26 @@ const AdminPage: React.FC = () => {
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                      <p className="text-sm text-gray-600">📱 {user.phone}</p>
+                      <h3 className="font-semibold text-gray-900">{user.full_name}</h3>
+                      <p className="text-sm text-gray-600">👤 {user.username}</p>
+                      <p className="text-sm text-gray-600">📱 {user.phone || 'No phone'}</p>
                       <p className="text-sm text-gray-600">
                         🗓️ Joined: {formatDate(user.created_at)}
                       </p>
                       <p className="text-sm text-gray-600">
                         📚 Lessons: {user.prompt_count || 0}
                       </p>
+                      <p className="text-sm text-gray-600">
+                        🔑 Role: {user.is_admin ? 'Admin' : 'User'}
+                      </p>
                     </div>
                     <button
                       onClick={() => handleDeleteUser(user.id)}
                       className="text-red-600 hover:text-red-800 text-sm font-medium p-1"
-                      title="Delete user"
+                      title={user.is_admin && user.id !== currentUser?.id ? "Cannot delete other admin" : "Delete user"}
+                      disabled={user.is_admin && user.id !== currentUser?.id}
                     >
-                      🗑️
+                      {user.is_admin && user.id !== currentUser?.id ? '🔒' : '🗑️'}
                     </button>
                   </div>
                 </div>
@@ -235,7 +242,7 @@ const AdminPage: React.FC = () => {
               <option value="">All Users</option>
               {users.map(user => (
                 <option key={user.id} value={user.id}>
-                  {user.name}
+                  {user.full_name} ({user.username})
                 </option>
               ))}
             </select>
@@ -325,7 +332,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 text-sm">
-                  <p><strong>User:</strong> {selectedPrompt.user_name}</p>
+                  <p><strong>User:</strong> {selectedPrompt.user_name} ({selectedPrompt.user_id})</p>
                   <p><strong>Category:</strong> {selectedPrompt.category_name}</p>
                   <p><strong>Sub-category:</strong> {selectedPrompt.sub_category_name}</p>
                 </div>

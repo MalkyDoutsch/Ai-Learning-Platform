@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { userApi, categoryApi, promptApi } from '../services/api';
-import { User, Category, SubCategory, CreatePromptData, Prompt } from '../types';
+import { categoryApi, promptApi } from '../services/api';
+import { Category, SubCategory, CreatePromptData, Prompt } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 
 const LearningPage: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,7 +17,6 @@ const LearningPage: React.FC = () => {
   } | null>(null);
   
   const [formData, setFormData] = useState({
-    user_id: '',
     category_id: '',
     sub_category_id: '',
     prompt: '',
@@ -63,18 +63,13 @@ const LearningPage: React.FC = () => {
 
   const loadInitialData = async () => {
     try {
-      const [usersData, categoriesData] = await Promise.all([
-        userApi.getUsers(),
-        categoryApi.getCategories()
-      ]);
-      
-      setUsers(usersData);
+      const categoriesData = await categoryApi.getCategories();
       setCategories(categoriesData);
     } catch (error) {
       console.error('Error loading initial data:', error);
       setAlert({
         type: 'error',
-        message: 'Failed to load initial data. Please refresh the page.'
+        message: 'Failed to load categories. Please refresh the page.'
       });
     } finally {
       setIsLoading(false);
@@ -113,12 +108,11 @@ const LearningPage: React.FC = () => {
 
     try {
       // Validation
-      if (!formData.user_id || !formData.category_id || !formData.sub_category_id || !formData.prompt.trim()) {
+      if (!formData.category_id || !formData.sub_category_id || !formData.prompt.trim()) {
         throw new Error('All fields are required');
       }
 
       const promptData: CreatePromptData = {
-        user_id: parseInt(formData.user_id),
         category_id: parseInt(formData.category_id),
         sub_category_id: parseInt(formData.sub_category_id),
         prompt: formData.prompt.trim()
@@ -134,7 +128,6 @@ const LearningPage: React.FC = () => {
 
       // Reset form
       setFormData({
-        user_id: formData.user_id, // Keep user selected
         category_id: '',
         sub_category_id: '',
         prompt: '',
@@ -152,7 +145,6 @@ const LearningPage: React.FC = () => {
 
   const selectedCategory = categories.find(c => c.id === parseInt(formData.category_id));
   const selectedSubCategory = subCategories.find(s => s.id === parseInt(formData.sub_category_id));
-  const selectedUser = users.find(u => u.id === parseInt(formData.user_id));
 
   if (isLoading) {
     return (
@@ -169,7 +161,7 @@ const LearningPage: React.FC = () => {
           🧠 AI Learning Platform
         </h1>
         <p className="text-xl text-gray-600">
-          Select a topic and ask questions to receive personalized AI lessons
+          Hello {user?.full_name}! Select a topic and ask questions to receive personalized AI lessons
         </p>
       </div>
 
@@ -190,33 +182,6 @@ const LearningPage: React.FC = () => {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* User Selection */}
-            <div>
-              <label htmlFor="user_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Select User *
-              </label>
-              <select
-                id="user_id"
-                name="user_id"
-                value={formData.user_id}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                required
-              >
-                <option value="">Choose a user...</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.phone})
-                  </option>
-                ))}
-              </select>
-              {users.length === 0 && (
-                <p className="text-sm text-red-500 mt-1">
-                  No users found. <a href="/register" className="text-primary-600 underline">Register a user first</a>.
-                </p>
-              )}
-            </div>
-
             {/* Category Selection */}
             <div>
               <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-2">
@@ -290,7 +255,7 @@ const LearningPage: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting || users.length === 0}
+              disabled={isSubmitting}
               className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
             >
               {isSubmitting ? (
@@ -326,8 +291,7 @@ const LearningPage: React.FC = () => {
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-gray-900 mb-2">Your Request:</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  <strong>User:</strong> {selectedUser?.name} | 
-                  <strong> Topic:</strong> {selectedCategory?.name} → {selectedSubCategory?.name}
+                  <strong>Topic:</strong> {selectedCategory?.name} → {selectedSubCategory?.name}
                 </p>
                 <p className="text-gray-800">"{submittedPrompt.prompt}"</p>
               </div>
@@ -374,3 +338,4 @@ const LearningPage: React.FC = () => {
 };
 
 export default LearningPage;
+    

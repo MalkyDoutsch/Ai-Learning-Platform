@@ -15,7 +15,7 @@ class UserBase(BaseModel):
             raise ValueError('Username cannot be empty')
         if len(v) < 3:
             raise ValueError('Username must be at least 3 characters long')
-        if not re.match(r'^[a-zA-Z0-9_-]+, v):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
             raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
         return v.strip().lower()
 
@@ -30,7 +30,7 @@ class UserBase(BaseModel):
         if v is None:
             return v
         # Basic phone validation
-        phone_pattern = r'^[\+]?[1-9][\d]{0,15}
+        phone_pattern = r'^[\+]?[1-9][\d]{0,15}$'
         if not re.match(phone_pattern, v.replace(' ', '').replace('-', '')):
             raise ValueError('Invalid phone number format')
         return v.replace(' ', '').replace('-', '')
