@@ -47,4 +47,3 @@ volumes:
 networks:
   learning_network:
     driver: bridge
-# ................................................................

@@ -1,51 +1,55 @@
-// import React from 'react';
-// import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-// import Layout from './components/layout/Layout';
-// import Home from './pages/Home';
-// import Categories from './pages/Categories';
-// import LessonGeneration from './pages/LessonGeneration';
-// import LearningHistory from './pages/LearningHistory';
-// import './styles/globals.css';
-
-// function App() {
-//   return (
-//     <Router>
-//       <Layout>
-//         <Routes>
-//           <Route path="/" element={<Home />} />
-//           <Route path="/categories" element={<Categories />} />
-//           <Route path="/generate" element={<LessonGeneration />} />
-//           <Route path="/history" element={<LearningHistory />} />
-//         </Routes>
-//       </Layout>
-//     </Router>
-//   );
-// }
-
-// export default App;
-
-//////////////////////////////////////////////////////////////////////////////////////
-// import React from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import Navbar from './components/Navbar';
+import ProtectedRoute from './components/ProtectedRoute';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import LearningPage from './pages/LearningPage';
+import HistoryPage from './pages/HistoryPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>AI Learning Platform</h1>
-      <p>Welcome! Your app is working.</p>
-      
-      <div style={{ marginTop: '20px' }}>
-        <button style={{ 
-          padding: '10px 20px', 
-          backgroundColor: '#007bff', 
-          color: 'white', 
-          border: 'none', 
-          borderRadius: '5px',
-          cursor: 'pointer'
-        }}>
-          Test Button
-        </button>
-      </div>
-    </div>
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="container mx-auto px-4 py-8">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route 
+                path="/learn" 
+                element={
+                  <ProtectedRoute>
+                    <LearningPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/history" 
+                element={
+                  <ProtectedRoute>
+                    <HistoryPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminPage />
+                  </ProtectedRoute>
+                } 
+              />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 

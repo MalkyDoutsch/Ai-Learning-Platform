@@ -15,6 +15,7 @@ from app.schemas.prompt import (
     AILessonResponse
 )
 from app.services.ai_service import ai_service
+from app.auth import get_current_active_user, get_current_admin_user
 
 router = APIRouter()
 
@@ -41,17 +42,10 @@ async def generate_ai_response(prompt_id: int, topic: str, prompt_text: str, cat
 async def create_prompt(
     prompt: PromptCreate, 
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Create a new prompt and generate AI response"""
-    # Verify user exists
-    user = db.query(User).filter(User.id == prompt.user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
     # Verify category exists
     category = db.query(Category).filter(Category.id == prompt.category_id).first()
     if not category:
@@ -71,8 +65,14 @@ async def create_prompt(
             detail="Subcategory not found or doesn't belong to the specified category"
         )
     
-    # Create the prompt
-    db_prompt = Prompt(**prompt.dict())
+    # Create the prompt with current user's ID
+    db_prompt = Prompt(
+        user_id=current_user.id,
+        category_id=prompt.category_id,
+        sub_category_id=prompt.sub_category_id,
+        prompt=prompt.prompt
+    )
+    
     db.add(db_prompt)
     db.commit()
     db.refresh(db_prompt)
@@ -96,7 +96,8 @@ async def get_all_prompts(
     skip: int = 0, 
     limit: int = 100, 
     user_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
 ):
     """Get all prompts (admin endpoint) with optional user filtering"""
     query = db.query(
@@ -107,7 +108,7 @@ async def get_all_prompts(
         Prompt.prompt,
         Prompt.response,
         Prompt.created_at,
-        User.name.label("user_name"),
+        User.full_name.label("user_name"),
         Category.name.label("category_name"),
         SubCategory.name.label("sub_category_name")
     ).join(User).join(Category).join(SubCategory)
@@ -133,14 +134,61 @@ async def get_all_prompts(
         for prompt in prompts
     ]
 
+@router.get("/my-prompts", response_model=List[PromptWithDetails])
+async def get_my_prompts(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get current user's prompts (learning history)"""
+    prompts = db.query(
+        Prompt.id,
+        Prompt.user_id,
+        Prompt.category_id,
+        Prompt.sub_category_id,
+        Prompt.prompt,
+        Prompt.response,
+        Prompt.created_at,
+        User.full_name.label("user_name"),
+        Category.name.label("category_name"),
+        SubCategory.name.label("sub_category_name")
+    ).join(User).join(Category).join(SubCategory).filter(
+        Prompt.user_id == current_user.id
+    ).order_by(desc(Prompt.created_at)).offset(skip).limit(limit).all()
+    
+    return [
+        PromptWithDetails(
+            id=prompt.id,
+            user_id=prompt.user_id,
+            category_id=prompt.category_id,
+            sub_category_id=prompt.sub_category_id,
+            prompt=prompt.prompt,
+            response=prompt.response,
+            created_at=prompt.created_at,
+            user_name=prompt.user_name,
+            category_name=prompt.category_name,
+            sub_category_name=prompt.sub_category_name
+        )
+        for prompt in prompts
+    ]
+
 @router.get("/users/{user_id}", response_model=List[PromptWithDetails])
 async def get_user_prompts(
     user_id: int,
     skip: int = 0,
     limit: int = 50,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    """Get all prompts for a specific user (learning history)"""
+    """Get prompts for a specific user (admin or own prompts only)"""
+    # Users can only view their own prompts, admins can view any user's prompts
+    if not current_user.is_admin and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to view these prompts"
+        )
+    
     # Verify user exists
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -157,7 +205,7 @@ async def get_user_prompts(
         Prompt.prompt,
         Prompt.response,
         Prompt.created_at,
-        User.name.label("user_name"),
+        User.full_name.label("user_name"),
         Category.name.label("category_name"),
         SubCategory.name.label("sub_category_name")
     ).join(User).join(Category).join(SubCategory).filter(
@@ -181,7 +229,11 @@ async def get_user_prompts(
     ]
 
 @router.get("/{prompt_id}", response_model=PromptWithDetails)
-async def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
+async def get_prompt(
+    prompt_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     """Get a specific prompt by ID"""
     prompt = db.query(
         Prompt.id,
@@ -191,7 +243,7 @@ async def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
         Prompt.prompt,
         Prompt.response,
         Prompt.created_at,
-        User.name.label("user_name"),
+        User.full_name.label("user_name"),
         Category.name.label("category_name"),
         SubCategory.name.label("sub_category_name")
     ).join(User).join(Category).join(SubCategory).filter(
@@ -202,6 +254,13 @@ async def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Prompt not found"
+        )
+    
+    # Users can only view their own prompts, admins can view any prompt
+    if not current_user.is_admin and prompt.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to view this prompt"
         )
     
     return PromptWithDetails(
@@ -218,7 +277,10 @@ async def get_prompt(prompt_id: int, db: Session = Depends(get_db)):
     )
 
 @router.post("/ai/generate-lesson", response_model=AILessonResponse)
-async def generate_lesson(lesson_request: AILessonRequest):
+async def generate_lesson(
+    lesson_request: AILessonRequest,
+    current_user: User = Depends(get_current_active_user)
+):
     """Generate AI lesson directly (for testing purposes)"""
     try:
         lesson = await ai_service.generate_lesson(
@@ -239,3 +301,28 @@ async def generate_lesson(lesson_request: AILessonRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating lesson: {str(e)}"
         )
+
+@router.delete("/{prompt_id}")
+async def delete_prompt(
+    prompt_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a prompt (admin or own prompts only)"""
+    prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+    if not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prompt not found"
+        )
+    
+    # Users can only delete their own prompts, admins can delete any prompt
+    if not current_user.is_admin and prompt.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to delete this prompt"
+        )
+    
+    db.delete(prompt)
+    db.commit()
+    return {"message": "Prompt deleted successfully"}
